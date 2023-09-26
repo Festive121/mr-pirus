@@ -19,31 +19,9 @@ fn main() -> io::Result<()> {
     }).expect("CTRL-C ERROR RECEIVING");
 
     while !should_exit.load(Ordering::SeqCst) {
-        clear_console();
+        challenge_1();
 
-        println!("{}", "Welcome Jim Pike...".red().bold());
-        thread::sleep(Duration::from_secs(1));
-        println!("For your first challenge, you have to reverse engineer the file on your desktop and find the password");
-        thread::sleep(Duration::from_secs(3));
-        println!("Your time starts now...");
-        thread::sleep(Duration::from_secs(1));
-        if let Err(err) = open_file("Desktop/countdown") {
-            eprintln!("Error opening file\n{}", err);
-        }
-
-        println!("Enter the password to continue.");
-        let mut pass = String::new();
-        io::stdin()
-            .read_line(&mut pass)
-            .expect("Failed to read input (var=pass)");
-
-        if pass == "integratedtc.net" {
-            println!("You got it!");
-            break;
-        } else {
-            println!("NOPE!!!");
-            break;
-        }
+        break;
     }
 
     println!("Exiting.");
@@ -157,5 +135,70 @@ fn no() {
 
         thread::sleep(Duration::from_secs(2));
         exit(0);
+    }
+}
+
+fn challenge_1() {
+    let mut c1 = true;
+    let mut countdown = false;
+    let mut remove_dur = 0;
+    let mut hints = 3;
+    while c1 {
+        clear_console();
+
+        println!("{}", "Welcome Jim Pyke...".red().bold());
+        thread::sleep(Duration::from_secs(3 - remove_dur));
+        println!("For your first challenge, you have to REVERSE engineer the file on your desktop and find the password.");
+        thread::sleep(Duration::from_secs(3 - remove_dur));
+        println!("Type \"hint\" for a hint! You only get {}.", "3".red());
+        thread::sleep(Duration::from_secs(3 - remove_dur));
+        println!("Your time starts now...");
+        thread::sleep(Duration::from_secs(3 - remove_dur));
+        if countdown == false {
+            if let Err(err) = open_file("Desktop/countdown") {
+                eprintln!("Error opening file\n{}", err);
+            }
+            countdown = true;
+            remove_dur = 3;
+        }
+
+        println!("Enter the password to continue.");
+        let mut pass = String::new();
+        io::stdin()
+            .read_line(&mut pass)
+            .expect("Failed to read input (var=pass)");
+
+        if pass.trim() == "integratedtc.net" {
+            println!("You got it!");
+            c1 = false;
+        } else if pass.trim().to_uppercase() == "HINT" {
+            if hints == 3 {
+                clear_console();
+                println!("Use IDA Free. It is very clear and easy.");
+                println!("{} hints left (press ENTER to continue)", hints);
+                hints -= 1;
+                io::stdin().read_line(&mut String::new()).expect("Failed to break program");
+            } else if hints == 2 {
+                clear_console();
+                println!("Check the .data section. I bet you will find some strings there.");
+                println!("{} hints left (press ENTER to continue)", hints);
+                hints -= 1;
+                io::stdin().read_line(&mut String::new()).expect("Failed to break program");
+            } else if hints == 1 {
+                clear_console();
+                println!("I think some processors convert ACSII text to Hex.");
+                println!("{} hints left (press ENTER to continue)", hints);
+                hints -= 1;
+                io::stdin().read_line(&mut String::new()).expect("Failed to break program");
+            } else if hints == 0 {
+                clear_console();
+                println!("No hints left :( (press ENTER to continue)");
+                io::stdin().read_line(&mut String::new()).expect("Failed to break program");
+            }
+        } else {
+            clear_console();
+            println!("NOPE!!!");
+            thread::sleep(Duration::from_secs(1));
+        }
     }
 }
