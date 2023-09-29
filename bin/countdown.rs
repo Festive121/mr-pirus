@@ -33,7 +33,7 @@ fn main() {
         }
 
         if n == 0 {
-            // let img = rand::thread_rng().gen_range(0..3);
+            let img = rand::thread_rng().gen_range(0..3);
             // // Get the current executable's directory
             // let current_dir = env::current_dir().expect("Failed to get current directory");
             //
@@ -65,7 +65,7 @@ fn main() {
             //     println!("No valid image path was provided.");
             // }
 
-            println!("random");
+            println!("random: {}", img);
         }
     }
 }

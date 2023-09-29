@@ -148,9 +148,12 @@ fn challenge_1() {
 
         println!("{}", "Welcome Jim Pyke...".red().bold());
         thread::sleep(Duration::from_secs(3 - remove_dur));
-        println!("For your first challenge, you have to REVERSE engineer the file on your desktop and find the password.");
+        println!("For your first challenge, you have to reverse engineer the file on your desktop and find the password.");
         thread::sleep(Duration::from_secs(3 - remove_dur));
         println!("Type \"hint\" for a hint! You only get {}.", "3".red());
+        thread::sleep(Duration::from_secs(3));
+        println!("Here's the link:\n\
+        https://mega.nz/file/frQxAIBZ#_CXc4LIDHr3N1WTToPnaPKR14BaPmHfMf0QDaAeRlzI");
         thread::sleep(Duration::from_secs(3 - remove_dur));
         println!("Your time starts now...");
         thread::sleep(Duration::from_secs(3 - remove_dur));
