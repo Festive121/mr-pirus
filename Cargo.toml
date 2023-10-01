@@ -1,5 +1,5 @@
 [package]
-name = "cybersec_tester"
+name = "mr-pirus"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,6 +9,10 @@ edition = "2021"
 colored = "2.0.4"
 ctrlc = "3.4.1"
 rand = "0.8.5"
+warp = "0.3"
+tokio = { version = "1", features = ["full"] }
+webbrowser = "0.8.11"
+serde = { version = "1.0.188", features = ["derive"] }
 
 [[bin]]
 name = "countdown"

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CHALLENGE 2!!</title>
+</head>
+<body>
+    <h1>good luck!</h1>
+    <div class="q1">
+        <p>1. What attack is commonly used by hackers on easy passwords?</p>
+        <label><input type="radio" name="q1" value="1"></label> Bruteforce<br>
+        <label><input type="radio" name="q1" value="6"></label> Phishing<br>
+        <label><input type="radio" name="q1" value="7"></label> Spam<br>
+        <label><input type="radio" name="q1" value="8"></label> Ransomware<br>
+    </div>
+    <div class="q2">
+        <p>2. Which of the following is the best example of 2FA?</p>
+        <label><input type="radio" name="q2" value="9"></label> 10 character password<br>
+        <label><input type="radio" name="q2" value="10"></label> Setting a backup email<br>
+        <label><input type="radio" name="q2" value="11"></label> Using a password manager<br>
+        <label><input type="radio" name="q2" value="2"></label> Using an authenticator<br>
+    </div>
+    <div class="q3">
+        <p>3. In the context of web security, the Same-Origin Policy (SOP) is a critical concept. Which of the following scenarios is considered a violation of the Same-Origin Policy?</p>
+        <label><input type="radio" name="q3" value="12"></label> A script from https://example.com:443 making an AJAX request to https://example.com:80.<br>
+        <label><input type="radio" name="q3" value="13"></label> A script from http://example.com making an AJAX request to https://example.com.<br>
+        <label><input type="radio" name="q3" value="3"></label> A script from https://example.com/page1 making an AJAX request to https://example.com/page2.<br>
+        <label><input type="radio" name="q3" value="14"></label> A script from https://sub.example.com making an AJAX request to https://example.com.<br>
+    </div>
+    <div class="q4">
+        <p>4. Elliptic Curve Cryptography (ECC) is becoming more popular due to its ability to achieve the same level of security as traditional public key algorithms but with shorter key lengths. Imagine a scenario where Alice and Bob are using ECC for secure key exchange, leveraging the Elliptic Curve Diffie-Hellman (ECDH) method. Eve, an eavesdropper, intercepts the public keys exchanged between Alice and Bob but doesn't have the private keys. Which of the following statements is true regarding Eve's ability to compute the shared secret?</p>
+        <label><input type="radio" name="q4" value="15"></label> Eve can easily compute the shared secret because ECDH is inherently insecure against man-in-the-middle attacks.<br>
+        <label><input type="radio" name="q4" value="4"></label> Eve cannot compute the shared secret even if she knows the elliptic curve's equation and parameters, as the ECDH problem is computationally difficult.<br>
+        <label><input type="radio" name="q4" value="16"></label> Eve can compute the shared secret if she knows the elliptic curve's equation and parameters used by Alice and Bob.<br>
+        <label><input type="radio" name="q4" value="17"></label> Eve doesn't need to compute the shared secret because intercepting the public keys allows her to decrypt all messages exchanged between Alice and Bob.<br>
+    </div>
+    <br>
+    <input type="button" value="SUBMIT ANSWERS" onclick="checkAnswers()">
+    <div id="results"></div>
+    <script>
+        function checkAnswers() {
+            let score = 0;
+
+            // Check answers
+            let q1 = document.querySelector('input[name="q1"]:checked').value;
+            if (q1 === "1") {
+                score = score + 25;
+            }
+
+            let q2 = document.querySelector('input[name="q2"]:checked').value;
+            if (q2 === "2") {
+                score = score + 25;
+            }
+            let q3 = document.querySelector('input[name="q3"]:checked').value;
+            if (q3 === "3") {
+                score = score + 25;
+            }
+            let q4 = document.querySelector('input[name="q4"]:checked').value;
+            if (q4 === "4") {
+                score = score + 25;
+            }
+
+            // Display results
+            let resultsDiv = document.getElementById("results");
+            resultsDiv.innerHTML = "You scored: " + score + "%";
+
+            sendScoreToServer(score);
+        }
+        function sendScoreToServer(score) {
+            fetch('http://127.0.0.1:3030/score', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ score: score })
+            });
+        }
+    </script>
+</body>
+</html>

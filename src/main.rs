@@ -1,31 +1,36 @@
 mod clear;
+mod webserver;
 
 use std::{io, thread};
 use colored::*;
 use clear::clear_console;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
 use std::time::Duration;
 use std::process::{Command, exit};
 
-fn main() -> io::Result<()> {
-    start();
+// fn main() -> io::Result<()> {
+//     // start();
+//
+//     let should_exit = Arc::new(AtomicBool::new(false));
+//     let r = should_exit.clone();
+//
+//     ctrlc::set_handler(move || {
+//         r.store(true, Ordering::SeqCst);
+//     }).expect("CTRL-C ERROR RECEIVING");
+//
+//     while !should_exit.load(Ordering::SeqCst) {
+//         // challenge_1();
+//         challenge_2();
+//
+//         break;
+//     }
+//
+//     println!("Exiting.");
+//     Ok(())
+// }
 
-    let should_exit = Arc::new(AtomicBool::new(false));
-    let r = should_exit.clone();
-
-    ctrlc::set_handler(move || {
-        r.store(true, Ordering::SeqCst);
-    }).expect("CTRL-C ERROR RECEIVING");
-
-    while !should_exit.load(Ordering::SeqCst) {
-        challenge_1();
-
-        break;
-    }
-
-    println!("Exiting.");
-    Ok(())
+fn main() {
+    challenge_2();
 }
 
 fn start() {
@@ -143,7 +148,7 @@ fn challenge_1() {
     let mut countdown = false;
     let mut remove_dur = 0;
     let mut hints = 3;
-    while c1 {
+    while c1 == false {
         clear_console();
 
         println!("{}", "Welcome Jim Pyke...".red().bold());
@@ -172,8 +177,10 @@ fn challenge_1() {
             .expect("Failed to read input (var=pass)");
 
         if pass.trim() == "integratedtc.net" {
-            println!("You got it!");
-            c1 = false;
+            clear_console();
+            println!("{}", "You got it!".bold().green());
+            c1 = true;
+            thread::sleep(Duration::from_secs(3))
         } else if pass.trim().to_uppercase() == "HINT" {
             if hints == 3 {
                 clear_console();
@@ -205,3 +212,41 @@ fn challenge_1() {
         }
     }
 }
+
+async fn challenge_2() {
+    // clear_console();
+    // println!("now lets try a quiz! you need a 100 to continue.");
+    // thread::sleep(Duration::from_secs(3));
+    // println!("you will get 3 tries");
+    // thread::sleep(Duration::from_secs(3));
+    // println!("soon, I will open an webserver");
+    // thread::sleep(Duration::from_secs(3));
+    // println!("there is a js function that will detect if you leave the page.");
+    // thread::sleep(Duration::from_secs(3));
+    // println!("good luck!");
+
+    let (tx, rx) = mpsc::channel::<i32>();
+    let (tx_end, rx_end) = mpsc::channel::<()>();
+    let server_task = tokio::spawn(webserver::start_server(tx, tx_end));
+
+    web();
+
+    rx_end.recv().unwrap();
+    end_c1();
+
+    let _ = server_task.await;
+}
+
+#[tokio::main]
+async fn web() {
+    if webbrowser::open("http://127.0.0.1:3030").is_err() {
+        eprintln!("Failed to open the web browser");
+    }
+
+    let (tx, rx) = mpsc::channel::<i32>();
+    let (tx_end, rx_end) = mpsc::channel::<()>();
+
+    webserver::start_server(tx, tx_end).await;
+}
+
+fn end_c1() { }
