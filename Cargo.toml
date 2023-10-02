@@ -17,3 +17,6 @@ serde = { version = "1.0.188", features = ["derive"] }
 [[bin]]
 name = "countdown"
 path = "bin/countdown.rs"
+[[bin]]
+name = "web"
+path = "bin/web.rs"

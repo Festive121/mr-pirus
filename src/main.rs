@@ -1,36 +1,34 @@
 mod clear;
-mod webserver;
 
 use std::{io, thread};
 use colored::*;
 use clear::clear_console;
-use std::sync::mpsc;
 use std::time::Duration;
 use std::process::{Command, exit};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-// fn main() -> io::Result<()> {
-//     // start();
-//
-//     let should_exit = Arc::new(AtomicBool::new(false));
-//     let r = should_exit.clone();
-//
-//     ctrlc::set_handler(move || {
-//         r.store(true, Ordering::SeqCst);
-//     }).expect("CTRL-C ERROR RECEIVING");
-//
-//     while !should_exit.load(Ordering::SeqCst) {
-//         // challenge_1();
-//         challenge_2();
-//
-//         break;
-//     }
-//
-//     println!("Exiting.");
-//     Ok(())
-// }
+fn main() -> io::Result<()> {
+    start();
 
-fn main() {
-    challenge_2();
+    let should_exit = Arc::new(AtomicBool::new(false));
+    let r = should_exit.clone();
+
+    ctrlc::set_handler(move || {
+        r.store(true, Ordering::SeqCst);
+    }).expect("CTRL-C ERROR RECEIVING");
+
+    while !should_exit.load(Ordering::SeqCst) {
+        let mut lives = 3;
+
+        execute_challenge(&mut lives, challenge_1);
+        execute_challenge(&mut lives, challenge_2);
+
+        break;
+    }
+
+    println!("YOU LOSE!!! I suggest finding a sub and doing some reading...");
+    Ok(())
 }
 
 fn start() {
@@ -143,8 +141,19 @@ fn no() {
     }
 }
 
-fn challenge_1() {
-    let mut c1 = true;
+fn execute_challenge<F: Fn() -> bool>(lives: &mut i32, challenge: F) {
+    let current_lives = *lives;
+    if !challenge() {
+        *lives -= 1;
+        if *lives != current_lives {
+            println!("Lives left: {}", lives.to_string().red().bold());
+            thread::sleep(Duration::from_secs(3));
+        }
+    }
+}
+
+fn challenge_1() -> bool {
+    let mut c1 = false;
     let mut countdown = false;
     let mut remove_dur = 0;
     let mut hints = 3;
@@ -153,10 +162,10 @@ fn challenge_1() {
 
         println!("{}", "Welcome Jim Pyke...".red().bold());
         thread::sleep(Duration::from_secs(3 - remove_dur));
-        println!("For your first challenge, you have to reverse engineer the file on your desktop and find the password.");
+        println!("For your first challenge, you have to reverse engineer a file and find the password.");
         thread::sleep(Duration::from_secs(3 - remove_dur));
         println!("Type \"hint\" for a hint! You only get {}.", "3".red());
-        thread::sleep(Duration::from_secs(3));
+        thread::sleep(Duration::from_secs(3 - remove_dur));
         println!("Here's the link:\n\
         https://mega.nz/file/frQxAIBZ#_CXc4LIDHr3N1WTToPnaPKR14BaPmHfMf0QDaAeRlzI");
         thread::sleep(Duration::from_secs(3 - remove_dur));
@@ -180,7 +189,10 @@ fn challenge_1() {
             clear_console();
             println!("{}", "You got it!".bold().green());
             c1 = true;
-            thread::sleep(Duration::from_secs(3))
+            thread::sleep(Duration::from_secs(3));
+
+            true;
+            break;
         } else if pass.trim().to_uppercase() == "HINT" {
             if hints == 3 {
                 clear_console();
@@ -211,42 +223,64 @@ fn challenge_1() {
             thread::sleep(Duration::from_secs(1));
         }
     }
+    false
 }
 
-async fn challenge_2() {
-    // clear_console();
-    // println!("now lets try a quiz! you need a 100 to continue.");
-    // thread::sleep(Duration::from_secs(3));
-    // println!("you will get 3 tries");
-    // thread::sleep(Duration::from_secs(3));
-    // println!("soon, I will open an webserver");
-    // thread::sleep(Duration::from_secs(3));
-    // println!("there is a js function that will detect if you leave the page.");
-    // thread::sleep(Duration::from_secs(3));
-    // println!("good luck!");
+fn challenge_2() -> bool {
+    clear_console();
+    println!("now lets try a quiz! you need a 100 to continue.");
+    thread::sleep(Duration::from_secs(3));
+    println!("you will get 1 try");
+    thread::sleep(Duration::from_secs(3));
+    println!("soon, I will open an webserver");
+    thread::sleep(Duration::from_secs(3));
+    println!("there is a js function that will detect if you leave the page.");
+    thread::sleep(Duration::from_secs(3));
+    println!("good luck!");
 
-    let (tx, rx) = mpsc::channel::<i32>();
-    let (tx_end, rx_end) = mpsc::channel::<()>();
-    let server_task = tokio::spawn(webserver::start_server(tx, tx_end));
-
-    web();
-
-    rx_end.recv().unwrap();
-    end_c1();
-
-    let _ = server_task.await;
-}
-
-#[tokio::main]
-async fn web() {
-    if webbrowser::open("http://127.0.0.1:3030").is_err() {
-        eprintln!("Failed to open the web browser");
+    if let Err(err) = open_file("Desktop/web") {
+        eprintln!("Error opening file\n{}", err);
     }
 
-    let (tx, rx) = mpsc::channel::<i32>();
-    let (tx_end, rx_end) = mpsc::channel::<()>();
+    thread::sleep(Duration::from_secs(10));
 
-    webserver::start_server(tx, tx_end).await;
+    clear_console();
+    println!("Im gonna be honest:");
+    println!("idk how to do that");
+    println!("so type your score here (0, 25, 50, 75, 100): ");
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read input");
+    let score: i32 = input.trim().parse().expect("Failed to parse input to an integer");
+
+    match score {
+        0 => {
+            println!("do you not know your subject?");
+            false
+        }
+        25 => {
+            println!("that's pretty bad");
+            false
+        }
+        50 => {
+            println!("umm not good");
+            false
+        }
+        75 => {
+            println!("so close but still a C");
+            false
+        }
+        100 => {
+            println!("good job! unless you cheated. in that case bad job.");
+            true
+        }
+        _ => {
+            println!("default--match score");
+            false
+        }
+    }
 }
 
 fn end_c1() { }
