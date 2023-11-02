@@ -1,6 +1,6 @@
 mod clear;
 
-use std::{io, thread};
+use std::{io, thread, fs};
 use colored::*;
 use clear::clear_console;
 use std::time::Duration;
@@ -11,6 +11,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 fn main() -> io::Result<()> {
     start();
 
+    const COUNTDOWN_BIN: &'static [u8] = include_bytes!("../target/release/countdown");
+    const WEB_BIN: &'static [u8] = include_bytes!("../target/release/web");
+
     let should_exit = Arc::new(AtomicBool::new(false));
     let r = should_exit.clone();
 
@@ -19,15 +22,21 @@ fn main() -> io::Result<()> {
     }).expect("CTRL-C ERROR RECEIVING");
 
     while !should_exit.load(Ordering::SeqCst) {
+        save_binary("countdown", COUNTDOWN_BIN).unwrap();
+        save_binary("web", WEB_BIN).unwrap();
+
         let mut lives = 3;
 
         execute_challenge(&mut lives, challenge_1);
         execute_challenge(&mut lives, challenge_2);
 
+        if lives == 0 {
+            println!("YOU LOSE!!! I suggest finding a sub and doing some reading...");
+        }
+
         break;
     }
 
-    println!("YOU LOSE!!! I suggest finding a sub and doing some reading...");
     Ok(())
 }
 
@@ -94,70 +103,11 @@ fn start() {
     }
 }
 
-fn open_file(path: &str) -> io::Result<()> {
-    if cfg!(target_os = "windows") {
-        Command::new("cmd")
-            .args(&["/C", "start", path])
-            .status()?;
-    } else if cfg!(target_os = "macos") {
-        Command::new("open")
-            .arg(path)
-            .status()?;
-    } else {
-        Command::new("xdg-open")
-            .arg(path)
-            .status()?;
-    }
-    Ok(())
-}
-
-fn no() {
-    clear_console();
-
-    let mut handle = String::new();
-    println!("Please type \"Y\" if it is too much for you to handle");
-    io::stdin()
-        .read_line(&mut handle)
-        .expect("Failed to read line (var=handle)");
-    handle = handle.trim().to_uppercase();
-
-    clear_console();
-
-    if handle == "Y" {
-        println!("Thanks for your honesty!");
-        thread::sleep(Duration::from_secs(2));
-
-        exit(0);
-    } else if handle == "N" {
-        println!("Don't lie...");
-        thread::sleep(Duration::from_secs(2));
-
-        exit(0);
-    } else {
-        println!("invalid answer... goodbye!");
-
-        thread::sleep(Duration::from_secs(2));
-        exit(0);
-    }
-}
-
-fn execute_challenge<F: Fn() -> bool>(lives: &mut i32, challenge: F) {
-    let current_lives = *lives;
-    if !challenge() {
-        *lives -= 1;
-        if *lives != current_lives {
-            println!("Lives left: {}", lives.to_string().red().bold());
-            thread::sleep(Duration::from_secs(3));
-        }
-    }
-}
-
 fn challenge_1() -> bool {
-    let mut c1 = false;
     let mut countdown = false;
     let mut remove_dur = 0;
     let mut hints = 3;
-    while c1 == false {
+    loop {
         clear_console();
 
         println!("{}", "Welcome Jim Pyke...".red().bold());
@@ -172,9 +122,7 @@ fn challenge_1() -> bool {
         println!("Your time starts now...");
         thread::sleep(Duration::from_secs(3 - remove_dur));
         if countdown == false {
-            if let Err(err) = open_file("Desktop/countdown") {
-                eprintln!("Error opening file\n{}", err);
-            }
+            run_binary("countdown").unwrap();
             countdown = true;
             remove_dur = 3;
         }
@@ -188,11 +136,9 @@ fn challenge_1() -> bool {
         if pass.trim() == "integratedtc.net" {
             clear_console();
             println!("{}", "You got it!".bold().green());
-            c1 = true;
             thread::sleep(Duration::from_secs(3));
 
-            true;
-            break;
+            return true;
         } else if pass.trim().to_uppercase() == "HINT" {
             if hints == 3 {
                 clear_console();
@@ -223,7 +169,6 @@ fn challenge_1() -> bool {
             thread::sleep(Duration::from_secs(1));
         }
     }
-    false
 }
 
 fn challenge_2() -> bool {
@@ -238,9 +183,7 @@ fn challenge_2() -> bool {
     thread::sleep(Duration::from_secs(3));
     println!("good luck!");
 
-    if let Err(err) = open_file("Desktop/web") {
-        eprintln!("Error opening file\n{}", err);
-    }
+    run_binary("web").unwrap();
 
     thread::sleep(Duration::from_secs(10));
 
@@ -283,4 +226,72 @@ fn challenge_2() -> bool {
     }
 }
 
-fn end_c1() { }
+fn no() {
+    clear_console();
+
+    let mut handle = String::new();
+    println!("Please type \"Y\" if it is too much for you to handle");
+    io::stdin()
+        .read_line(&mut handle)
+        .expect("Failed to read line (var=handle)");
+    handle = handle.trim().to_uppercase();
+
+    clear_console();
+
+    if handle == "Y" {
+        println!("Thanks for your honesty!");
+        thread::sleep(Duration::from_secs(2));
+
+        exit(0);
+    } else if handle == "N" {
+        println!("Don't lie...");
+        thread::sleep(Duration::from_secs(2));
+
+        exit(0);
+    } else {
+        println!("invalid answer... goodbye!");
+
+        thread::sleep(Duration::from_secs(2));
+        exit(0);
+    }
+}
+
+// fn open_file(path: &str) -> io::Result<()> {
+//     if cfg!(target_os = "windows") {
+//         Command::new("cmd")
+//             .args(&["/C", "start", path])
+//             .status()?;
+//     } else if cfg!(target_os = "macos") {
+//         Command::new("open")
+//             .arg(path)
+//             .status()?;
+//     } else {
+//         Command::new("xdg-open")
+//             .arg(path)
+//             .status()?;
+//     }
+//     Ok(())
+// }
+
+fn execute_challenge<F: Fn() -> bool>(lives: &mut i32, challenge: F) {
+    let current_lives = *lives;
+    if !challenge() {
+        *lives -= 1;
+        if *lives != current_lives {
+            println!("Lives left: {}", lives.to_string().red().bold());
+            thread::sleep(Duration::from_secs(3));
+        }
+    }
+}
+
+fn save_binary(name: &str, data: &[u8]) -> io::Result<()> {
+    let path = std::env::temp_dir().join(name);
+    fs::write(&path, data)?;
+    Ok(())
+}
+
+fn run_binary(name: &str) -> io::Result<()> {
+    let path = std::env::temp_dir().join(name);
+    Command::new(&path).spawn()?.wait()?;
+    Ok(())
+}
