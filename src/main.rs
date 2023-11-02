@@ -11,8 +11,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 fn main() -> io::Result<()> {
     start();
 
-    const COUNTDOWN_BIN: &'static [u8] = include_bytes!("../target/release/countdown");
-    const WEB_BIN: &'static [u8] = include_bytes!("../target/release/web");
+    const COUNTDOWN_BIN: &'static [u8] = include_bytes!("../target/release/countdown.exe");
+    const WEB_BIN: &'static [u8] = include_bytes!("../target/release/web.exe");
+
+    save_binary("countdown", COUNTDOWN_BIN).unwrap();
+    save_binary("c2", WEB_BIN).unwrap();
 
     let should_exit = Arc::new(AtomicBool::new(false));
     let r = should_exit.clone();
@@ -22,9 +25,6 @@ fn main() -> io::Result<()> {
     }).expect("CTRL-C ERROR RECEIVING");
 
     while !should_exit.load(Ordering::SeqCst) {
-        save_binary("countdown", COUNTDOWN_BIN).unwrap();
-        save_binary("web", WEB_BIN).unwrap();
-
         let mut lives = 3;
 
         execute_challenge(&mut lives, challenge_1);
@@ -154,7 +154,7 @@ fn challenge_1() -> bool {
                 io::stdin().read_line(&mut String::new()).expect("Failed to break program");
             } else if hints == 1 {
                 clear_console();
-                println!("I think some processors convert ACSII text to Hex.");
+                println!("I think some processors convert ASCII text to Hex.");
                 println!("{} hints left (press ENTER to continue)", hints);
                 hints -= 1;
                 io::stdin().read_line(&mut String::new()).expect("Failed to break program");
@@ -183,7 +183,7 @@ fn challenge_2() -> bool {
     thread::sleep(Duration::from_secs(3));
     println!("good luck!");
 
-    run_binary("web").unwrap();
+    run_binary("c2").unwrap();
 
     thread::sleep(Duration::from_secs(10));
 
@@ -257,19 +257,10 @@ fn no() {
 }
 
 // fn open_file(path: &str) -> io::Result<()> {
-//     if cfg!(target_os = "windows") {
-//         Command::new("cmd")
-//             .args(&["/C", "start", path])
-//             .status()?;
-//     } else if cfg!(target_os = "macos") {
-//         Command::new("open")
-//             .arg(path)
-//             .status()?;
-//     } else {
-//         Command::new("xdg-open")
-//             .arg(path)
-//             .status()?;
-//     }
+//     Command::new("cmd")
+//         .args(&["/C", "start", path])
+//         .status()?;
+//
 //     Ok(())
 // }
 
@@ -285,13 +276,20 @@ fn execute_challenge<F: Fn() -> bool>(lives: &mut i32, challenge: F) {
 }
 
 fn save_binary(name: &str, data: &[u8]) -> io::Result<()> {
-    let path = std::env::temp_dir().join(name);
+    let path = std::env::temp_dir().join(format!("{}.exe", name));
     fs::write(&path, data)?;
     Ok(())
 }
 
+
 fn run_binary(name: &str) -> io::Result<()> {
-    let path = std::env::temp_dir().join(name);
-    Command::new(&path).spawn()?.wait()?;
+    let path = std::env::temp_dir().join(format!("{}.exe", name));
+    let path_str = path.to_str().unwrap();
+
+    Command::new("cmd.exe")
+        .args(&["/C", "start", "cmd.exe", "/K", path_str])
+        .spawn()?
+        .wait()?;
+
     Ok(())
 }
