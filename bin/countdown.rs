@@ -1,16 +1,23 @@
-use std::thread;
-use std::time::Duration;
 use rand::Rng;
-use std::process::Command;
+use std::{fs, io::Write, process::Command, thread, time::Duration};
+use tempfile::NamedTempFile;
+use std::sync::mpsc;
 
 fn main() {
     let mut seconds = 1;
     let mut minutes = 10;
-    let n = rand::thread_rng().gen_range(0..100);
+
+    // embed images
+    const IMG_DATA_1: &'static [u8] = include_bytes!("../images/1 a33q f0zr p0afhygvat cym.png");
+    const IMG_DATA_2: &'static [u8] = include_bytes!("../images/c00e q3f1ta.png");
+    const IMG_DATA_3: &'static [u8] = include_bytes!("../images/choy1p q1fcy4l bs 1as0ez4g10a.png");
+    const IMG_DATA_4: &'static [u8] = include_bytes!("../images/je1gg3a ol w1z clx3.png");
 
     clear_console();
 
     while (minutes + seconds) >= 0 {
+        let n = rand::thread_rng().gen_range(0..50);
+
         if seconds == 0 && minutes != 0{
             seconds = 59;
             minutes -= 1;
@@ -33,45 +40,51 @@ fn main() {
         }
 
         if n == 0 {
-            let img = rand::thread_rng().gen_range(0..3);
-            // // Get the current executable's directory
-            // let current_dir = env::current_dir().expect("Failed to get current directory");
-            //
-            // // Create the full path to the image
-            // let image_path0 = current_dir.join("images").join("1 a33q f0zr p0afhygvat cym.png");
-            // let image_path1 = current_dir.join("images").join("c00e q3f1ta.png");
-            // let image_path2 = current_dir.join("images").join("choy1p q1fcy4l bs 1as0ez4g10a.png");
-            // let image_path3 = current_dir.join("images").join("je1gg3a ol w1z clx3.png");
-            //
-            // let image_path_str;
-            //
-            // match img {
-            //     1 => image_path_str = Some(image_path0.to_str().expect("Failed to convert path to string")),
-            //     2 => image_path_str = Some(image_path1.to_str().expect("Failed to convert path to string")),
-            //     3 => image_path_str = Some(image_path2.to_str().expect("Failed to convert path to string")),
-            //     4 => image_path_str = Some(image_path3.to_str().expect("Failed to convert path to string")),
-            //     _ => {
-            //         println!("ERR IN IMG PATH MATCH");
-            //         return;
-            //     }
-            // }
-            //
-            // if let Some(path) = image_path_str {
-            //     Command::new("cmd")
-            //         .args(&["/C", "start", path])
-            //         .spawn()
-            //         .expect("Failed to open image");
-            // } else {
-            //     println!("No valid image path was provided.");
-            // }
+            let img = rand::thread_rng().gen_range(1..=4);
+            let img_data = match img {
+                1 => IMG_DATA_1,
+                2 => IMG_DATA_2,
+                3 => IMG_DATA_3,
+                4 => IMG_DATA_4,
+                _ => unreachable!(),
+            };
 
-            println!("random: {}", img);
+            // Spawn a new thread for handling the image display
+
+            thread::spawn(move || {
+                let temp_file = NamedTempFile::new().expect("Failed to create temporary file");
+                temp_file.as_file().write_all(img_data).expect("Failed to write image data to temporary file");
+
+                // Get the path of the temporary file
+                let temp_path = temp_file.into_temp_path();
+
+                // Create a new path with the .png extension
+                let img_path = temp_path.with_extension("png");
+
+                // Rename the temporary file to have the .png extension
+                fs::rename(&temp_path, &img_path).expect("Failed to rename temporary file");
+
+                let img_path_str = img_path.to_str().expect("Failed to convert path to string");
+
+                Command::new("cmd")
+                    .args(&["/C", "start", img_path_str])
+                    .spawn()
+                    .expect("Failed to open image");
+
+                // Keep the file from being deleted for a longer period, adjust as needed
+                thread::sleep(Duration::from_secs(60));
+            });
         }
     }
 }
 
 fn end() {
+    let (tx, _rx) = mpsc::channel();
+    let tx_thread = tx.clone();
+
     clear_console();
+
+    tx_thread.send("Timer end").unwrap();
     println!("end");
 }
 

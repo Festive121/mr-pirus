@@ -1,15 +1,18 @@
 mod clear;
 
-use std::{io, thread, fs};
-use colored::*;
 use clear::clear_console;
-use std::time::Duration;
+use colored::*;
+use std::collections::{HashMap, HashSet};
+use std::io::Write;
 use std::process::{Command, exit};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, mpsc};
+use std::time::Duration;
+use std::{io, thread, fs};
+
 
 fn main() -> io::Result<()> {
-    start();
+    // start();
 
     const COUNTDOWN_BIN: &'static [u8] = include_bytes!("../target/release/countdown.exe");
     const WEB_BIN: &'static [u8] = include_bytes!("../target/release/web.exe");
@@ -27,8 +30,9 @@ fn main() -> io::Result<()> {
     while !should_exit.load(Ordering::SeqCst) {
         let mut lives = 3;
 
-        execute_challenge(&mut lives, challenge_1);
-        execute_challenge(&mut lives, challenge_2);
+        // execute_challenge(&mut lives, challenge_1);
+        // execute_challenge(&mut lives, challenge_2);
+        execute_challenge(&mut lives, challenge_3);
 
         if lives == 0 {
             println!("YOU LOSE!!! I suggest finding a sub and doing some reading...");
@@ -104,10 +108,34 @@ fn start() {
 }
 
 fn challenge_1() -> bool {
+    let (tx, rx) = mpsc::channel();
+    let countdown_duration = 60; // Example: 60 seconds for the countdown
+
+    // Spawn a thread for the countdown
+    let tx_countdown = tx.clone();
+    thread::spawn(move || {
+        thread::sleep(Duration::from_secs(countdown_duration));
+        tx_countdown.send("Time Up").unwrap();
+    });
+
     let mut countdown = false;
     let mut remove_dur = 0;
     let mut hints = 3;
     loop {
+        match rx.try_recv() {
+            Ok(msg) => {
+                if msg == "Time Up" {
+                    // Handle the end of the countdown
+                    println!("Countdown finished!");
+                    return false // Or handle it as needed
+                }
+            },
+            Err(_e) => {
+                // No message received, or an error occurred
+                // You can ignore this or handle it as needed
+            }
+        }
+
         clear_console();
 
         println!("{}", "Welcome Jim Pyke...".red().bold());
@@ -226,6 +254,151 @@ fn challenge_2() -> bool {
     }
 }
 
+fn challenge_3() -> bool {
+    // clear_console();
+    // println!("You are now going to try to find the password through a linux terminal");
+    // thread::sleep(Duration::from_secs(3));
+    // println!("All of this is simulated so there might not be every command you can think of");
+    // thread::sleep(Duration::from_secs(3));
+    // println!("here we go!");
+    // thread::sleep(Duration::from_secs(1));
+
+    let correct_password = "givejackanAforreinventinglinux";
+    let mut guesses = 3;
+
+    let mut dir = String::from("~");
+    let mut last_dir = String::from("~");
+    let mut available_dirs = HashSet::new();
+    available_dirs.insert("~");
+    available_dirs.insert("/etc");
+    available_dirs.insert("~/secret");
+    available_dirs.insert("/home/jim");
+
+    let mut files = HashMap::new();
+    files.insert("~/readme.txt", "use the \"pass <password>\" command to submit a password\nyou only get 3 guesses");
+    files.insert("~/secret/SECRET_PASSWORD", "To die: to sleep; to sleep: perchance to dread of so long a life,\
+    but that the slings and them? To die, to grunt and sweat under a weary life, but that the will, and them?\
+    To die, to suffer the will, and moment with this regard them?\
+    To die, to sleep; no more; and the spurns that the question: whether 'tis a consummation devoutly to others that sleep of death what dream:\
+    ay, the unworthy takes, when we have shuffled off this mortal coil, must give us pause.\
+    There's the question: whether bear the respe");
+    files.insert("~/secret/.shadow", "nothing...");
+
+    clear_console();
+
+    loop {
+        if guesses == 0 {
+            break
+        }
+
+        print!("{}:{}$ ", "jim@linux-desktop".green(), dir.blue());
+        io::stdout().flush().expect("Failed to flush stdout");
+        let mut command = String::new();
+        io::stdin()
+            .read_line(&mut command)
+            .expect("Failed to read command");
+        command = command.trim().parse().unwrap();
+        let parts: Vec<&str> = command.split_whitespace().collect();
+        let cmd = parts.get(0).unwrap_or(&"");
+
+        match *cmd {
+            "ls" => {
+                let show_all = parts.contains(&"-a");
+
+                match dir.as_str() {
+                    "~" => {
+                        if show_all {
+                            println!(".");
+                            println!("..");
+                        }
+                        println!("{}", "secret".blue());
+                        println!("readme.txt");
+                    },
+                    "~/secret" => {
+                        if show_all {
+                            println!(".");
+                            println!("..");
+                            println!(".shadow");
+                        }
+                        println!("SECRET_PASSWORD");
+                    },
+                    _ => println!("Directory not found.")
+                }
+            },
+            "clear" => {
+                clear_console();
+            },
+            "cat" => {
+                if let Some(filename) = parts.get(1) {
+                    let filepath = format!("{}/{}", dir, filename);
+                    match files.get(filepath.as_str()) {
+                        Some(content) => println!("{}", content),
+                        None => println!("{}: No such file", filename),
+                    }
+                } else {
+                    println!("cat: missing operand");
+                }
+            },
+            "cd" => {
+                if let Some(target_dir) = parts.get(1) {
+                    if target_dir.to_string() == "." {
+                        // Do nothing as '.' refers to the current directory
+                    } else if target_dir.to_string() == ".." {
+                        // Move to the parent directory
+                        if dir != "~" { // Assuming '~' is the root and has no parent
+                            let parts = dir.rsplitn(2, '/').collect::<Vec<&str>>();
+                            let new_dir = parts.last().unwrap_or(&"~");
+                            dir = (*new_dir).to_string();
+                        }
+                    } else if target_dir.to_string() == "-" {
+                        let temp = dir.clone();
+                        dir = last_dir.clone();
+                        last_dir = temp;
+                    } else {
+                        let full_path = if target_dir.starts_with("/") {
+                            target_dir.to_string()
+                        } else {
+                            format!("{}/{}", dir.trim_start_matches('~'), target_dir)
+                        };
+
+                        if (full_path == "/secret" && dir == "~") || available_dirs.contains(&full_path.as_str()) {
+                            dir = if full_path.starts_with('/') { format!("~{}", full_path) } else { full_path };
+                        } else {
+                            println!("{}: No such directory", target_dir);
+                        }
+                    }
+                } else {
+                    dir = "~".to_string(); // Reset to home directory
+                }
+            },
+            "pass" => {
+                if let Some(password) = parts.get(1) {
+                    if password.to_string() == correct_password {
+                        println!("Password guessed correctly!");
+                        return true; // User guessed the password
+                    } else {
+                        println!("Incorrect password.");
+                    }
+                } else {
+                    println!("pass: missing password argument");
+                }
+
+                guesses -= 1;
+            },
+            _ => println!("Command not found: {}", command)
+        }
+    }
+
+    thread::sleep(Duration::from_secs(1));
+    clear_console();
+    println!("hmm this was pretty easy...");
+    thread::sleep(Duration::from_secs(3));
+    println!("strange...");
+    thread::sleep(Duration::from_secs(3));
+
+    return false
+}
+
 fn no() {
     clear_console();
 
@@ -255,14 +428,6 @@ fn no() {
         exit(0);
     }
 }
-
-// fn open_file(path: &str) -> io::Result<()> {
-//     Command::new("cmd")
-//         .args(&["/C", "start", path])
-//         .status()?;
-//
-//     Ok(())
-// }
 
 fn execute_challenge<F: Fn() -> bool>(lives: &mut i32, challenge: F) {
     let current_lives = *lives;
