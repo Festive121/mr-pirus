@@ -3,13 +3,12 @@ mod clear;
 use clear::clear_console;
 use colored::*;
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, exit};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
 use std::time::Duration;
 use std::{io, thread, fs};
-
 
 fn main() -> io::Result<()> {
     // start();
@@ -263,28 +262,82 @@ fn challenge_3() -> bool {
     // println!("here we go!");
     // thread::sleep(Duration::from_secs(1));
 
-    let correct_password = "givejackanAforreinventinglinux";
-    let mut guesses = 3;
+    const CORRECT_PASSWORD: &str = "givejackanAforreinventinglinux";
+    const ADDRESS: &str = "389d7092";
+    let mut guesses: i8 = 3;
+    let mut narrate: i8 = 0;
 
     let mut dir = String::from("~");
-    let mut last_dir = String::from("~");
     let mut available_dirs = HashSet::new();
     available_dirs.insert("~");
     available_dirs.insert("/etc");
     available_dirs.insert("~/secret");
+    available_dirs.insert("/home");
     available_dirs.insert("/home/jim");
 
     let mut files = HashMap::new();
-    files.insert("~/readme.txt", "use the \"pass <password>\" command to submit a password\nyou only get 3 guesses");
+    let readme_details = r#"let guesses: i8 = 3;
+println!("use the \"pass <password>\" command to submit a password, but you only get {} guesses", guesses);
+println!("I also added a \"narrate\" command that prints your thoughts. Whenever a new thought appears, you see a green \"**\"");
+
+let cmdlist = vec![
+    "clear",
+    "ls",
+    "cd",
+    "cat",
+    "man (ascii)",
+    "pass",
+    "./",
+    "narrate",
+    "disassemble"
+];"#;
+    files.insert("~/readme.txt", readme_details);
     files.insert("~/secret/SECRET_PASSWORD", "To die: to sleep; to sleep: perchance to dread of so long a life,\
     but that the slings and them? To die, to grunt and sweat under a weary life, but that the will, and them?\
     To die, to suffer the will, and moment with this regard them?\
     To die, to sleep; no more; and the spurns that the question: whether 'tis a consummation devoutly to others that sleep of death what dream:\
     ay, the unworthy takes, when we have shuffled off this mortal coil, must give us pause.\
-    There's the question: whether bear the respe");
+    There's the question: whether bear the respect");
     files.insert("~/secret/.shadow", "nothing...");
+    let ls_details = r#"#!/bin/bash
+
+cat << 'EOF'
+let show_all = parts.contains(&"-a");
+
+match dir.as_str() {
+    "~" => {
+        if show_all {
+            println!(".");
+            println!("..");
+        }
+        println!("{}", "secret".blue());
+        println!("readme.txt");
+    },
+    "~/secret" => {
+        if show_all {
+            println!(".");
+            println!("..");
+            println!(".shadow");
+        }
+        println!("SECRET_PASSWORD");
+        println!("{}", "ln?".green());
+    },
+    _ => println!("Directory not found.")
+}
+EOF
+echo "just one command I'm working on. I'd like to use the -fa to decrypt a file with a key, but not sure how..."#;
+    files.insert("~/secret/ls?.sh", ls_details);
+
+    // include mems
+    const ASM: &str = include_str!("../c3/asm.txt");
+    const LS: &str = include_str!("../c3/ls_mem.txt");
+
+    // include man commands
+    const ASCII: &str = include_str!("../c3/ascii.txt");
 
     clear_console();
+
+    println!("{}", "**".green());
 
     loop {
         if guesses == 0 {
@@ -304,25 +357,40 @@ fn challenge_3() -> bool {
         match *cmd {
             "ls" => {
                 let show_all = parts.contains(&"-a");
+                let flag_d = parts.contains(&"-fa");
 
-                match dir.as_str() {
-                    "~" => {
-                        if show_all {
-                            println!(".");
-                            println!("..");
+                if flag_d {
+                    if let Some(file_name) = parts.get(2) { // getting the file name
+                        let file_path = format!("{}/{}", dir, file_name); // . and vv checking if exists in current dir
+                        if files.contains_key(&file_path.as_str()) {
+
+                        } else {
+                            println!("File not found: {}", file_name);
                         }
-                        println!("{}", "secret".blue());
-                        println!("readme.txt");
-                    },
-                    "~/secret" => {
-                        if show_all {
-                            println!(".");
-                            println!("..");
-                            println!(".shadow");
-                        }
-                        println!("SECRET_PASSWORD");
-                    },
-                    _ => println!("Directory not found.")
+                    } else {
+                        println!("No file specified for decryption.");
+                    }
+                } else {
+                    match dir.as_str() {
+                        "~" => {
+                            if show_all {
+                                println!(".");
+                                println!("..");
+                            }
+                            println!("{}", "secret".blue());
+                            println!("readme.txt");
+                        },
+                        "~/secret" => {
+                            if show_all {
+                                println!(".");
+                                println!("..");
+                                println!(".shadow");
+                            }
+                            println!("SECRET_PASSWORD");
+                            println!("{}", "ls?.sh".green());
+                        },
+                        _ => println!("Directory not found.")
+                    }
                 }
             },
             "clear" => {
@@ -342,18 +410,14 @@ fn challenge_3() -> bool {
             "cd" => {
                 if let Some(target_dir) = parts.get(1) {
                     if target_dir.to_string() == "." {
-                        // Do nothing as '.' refers to the current directory
                     } else if target_dir.to_string() == ".." {
-                        // Move to the parent directory
-                        if dir != "~" { // Assuming '~' is the root and has no parent
+                        if dir != "~" {
                             let parts = dir.rsplitn(2, '/').collect::<Vec<&str>>();
                             let new_dir = parts.last().unwrap_or(&"~");
                             dir = (*new_dir).to_string();
                         }
                     } else if target_dir.to_string() == "-" {
-                        let temp = dir.clone();
-                        dir = last_dir.clone();
-                        last_dir = temp;
+                        println!("not implemented :(");
                     } else {
                         let full_path = if target_dir.starts_with("/") {
                             target_dir.to_string()
@@ -368,14 +432,14 @@ fn challenge_3() -> bool {
                         }
                     }
                 } else {
-                    dir = "~".to_string(); // Reset to home directory
+                    dir = "~".to_string();
                 }
             },
             "pass" => {
                 if let Some(password) = parts.get(1) {
-                    if password.to_string() == correct_password {
+                    if password.to_string() == CORRECT_PASSWORD {
                         println!("Password guessed correctly!");
-                        return true; // User guessed the password
+                        return true;
                     } else {
                         println!("Incorrect password.");
                     }
@@ -384,6 +448,56 @@ fn challenge_3() -> bool {
                 }
 
                 guesses -= 1;
+            },
+            "./ls?.sh" => {
+                if dir == "~/secret" {
+                    let print_ls = "./ls?.sh: line 27: unexpected EOF while looking for matching `\"'\n./ls?.sh: line 27: syntax error: unexpected end of file";
+                    println!("{}", print_ls);
+                    narrate = 1;
+                    println!("{}", "**".green());
+                }
+                else {
+                    println!("No such file or directory");
+                }
+            },
+            "narrate" => {
+                match narrate {
+                    0 => println!("I should look around the file system first"),
+                    1 => println!("I wonder what other commands there are? whats .shadow?"),
+                    2 => println!("Maybe the stuff at this address translates to something."),
+                    3 => println!("I bet some other files have important data."),
+                    _ => unreachable!()
+                }
+            },
+            "disassemble" => {
+                if parts.len() == 3 {
+                    let file_key = parts[1];
+                    let address = parts[2].to_lowercase();
+
+                    match file_key {
+                        ".shadow" => handle_disassemble(file_key, &address, ASM, &mut narrate),
+                        "ls?.sh" => handle_disassemble(file_key, &address, LS, &mut narrate),
+                        // Add other cases as needed
+                        _ => println!("Invalid file key: {}", file_key),
+                    }
+                } else {
+                    println!("Missing argument(s):\nUsage: disassemble <file> <address>")
+                }
+            },
+            "man" => {
+                if let Some(cmd) = parts.get(1) {
+                    if cmd.to_string() == "ascii" {
+                        println!("{}", ASCII);
+                    }
+                }
+            },
+            "touch" => {
+                if let Some(file) = parts.get(1) {
+                    let file_path = format!("{}/{}", dir, file);
+                    files.insert(&*file_path, &*"".to_string());
+                } else {
+                    println!("Missing argument:\nUsage: touch <file>");
+                }
             },
             _ => println!("Command not found: {}", command)
         }
@@ -457,4 +571,33 @@ fn run_binary(name: &str) -> io::Result<()> {
         .wait()?;
 
     Ok(())
+}
+
+fn find_address_in_file(address: &str, file_content: &str) -> io::Result<Option<String>> {
+    let reader = BufReader::new(file_content.as_bytes());
+
+    for line in reader.lines() {
+        let line = line?;
+        if line.contains(address) {
+            return Ok(Some(line));
+        }
+    }
+
+    Ok(None)
+}
+
+fn handle_disassemble(file_key: &str, address: &str, file_content: &str, narrate: &mut i8) {
+    match find_address_in_file(address, file_content) {
+        Ok(Some(line)) => {
+            *narrate = match file_key {
+                ".shadow" => 2,
+                "ls?.sh" => 3,
+                _ => *narrate,
+            };
+            println!("{}", line);
+            println!("{}", "**".green());
+        },
+        Ok(None) => println!("Address not found/unreadable"),
+        Err(e) => println!("Error: {}", e),
+    }
 }
