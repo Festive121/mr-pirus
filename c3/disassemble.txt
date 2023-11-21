@@ -1,0 +1,11 @@
+NAME
+    disassemble
+
+SYNOPSIS
+    disassemble [FILE] [ADDRESS]
+
+DESCRIPTION
+    Takes an executable file and an address then displays the hexadecimal
+    data at the location.
+
+    All arguments are mandatory
