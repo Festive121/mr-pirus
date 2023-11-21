@@ -266,6 +266,7 @@ fn challenge_3() -> bool {
     const ADDRESS: &str = "389d7092";
     let mut guesses: i8 = 3;
     let mut narrate: i8 = 0;
+    let mut shadow_discovered = false;
 
     let mut dir = String::from("~");
     let mut available_dirs = HashSet::new();
@@ -278,27 +279,38 @@ fn challenge_3() -> bool {
     let mut files = HashMap::new();
     let readme_details = r#"let guesses: i8 = 3;
 println!("use the \"pass <password>\" command to submit a password, but you only get {} guesses", guesses);
-println!("I also added a \"narrate\" command that prints your thoughts. Whenever a new thought appears, you see a green \"**\"");
+println!("I also added a \"narrate\" command that prints your thoughts.");
 
 let cmdlist = vec![
     "clear",
     "ls",
     "cd",
     "cat",
+    "grep",
     "man (ascii)",
     "pass",
     "./",
     "narrate",
     "disassemble"
 ];"#;
+
     files.insert("~/readme.txt", readme_details);
+
     files.insert("~/secret/SECRET_PASSWORD", "To die: to sleep; to sleep: perchance to dread of so long a life,\
     but that the slings and them? To die, to grunt and sweat under a weary life, but that the will, and them?\
     To die, to suffer the will, and moment with this regard them?\
     To die, to sleep; no more; and the spurns that the question: whether 'tis a consummation devoutly to others that sleep of death what dream:\
     ay, the unworthy takes, when we have shuffled off this mortal coil, must give us pause.\
     There's the question: whether bear the respect");
-    files.insert("~/secret/.shadow", "nothing...");
+
+    files.insert("~/secret/.shadow", r#"�ELF���4�4�@@�@8�8���������������������������������
+�>�>�:�:���������������������������������������������
+��/lib64/ld-linux-x86-32.so.2��GNU��GNU�u�9�w�
+�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
+�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
+.text�.note.gnu.build-id�.eh_frame_hdr�.eh_frame�.init_array�
+.fini_array�.dynamic�.got�.got.plt�.data�.bss�.comment�"#);
+
     let ls_details = r#"#!/bin/bash
 
 cat << 'EOF'
@@ -325,19 +337,24 @@ match dir.as_str() {
     _ => println!("Directory not found.")
 }
 EOF
-echo "just one command I'm working on. I'd like to use the -fa to decrypt a file with a key, but not sure how..."#;
+echo "just one command I'm working on. I'd like to use -fa to decrypt a file with a key, but not sure how..."#;
     files.insert("~/secret/ls?.sh", ls_details);
+    files.insert("/home/jim/no.txt", "I am not adding every linux directory and file.");
+    files.insert("/home/jim/man_computer.txt", "At a given memory point, there is a hex value\
+    Hex values contain data for the system, which could be Strings.\
+    For a program checking a password vvv\
+    char password[] = \"pass\"; char input[100]; ... if (strcmp(input, pass) == 0) { correct(); };\
+    password has to be stored somewhere, and if left unencrypted, can be read through the memory.\
+    pass -> [0x00000000]: 70 61 73 73");
 
-    // include mems
-    const ASM: &str = include_str!("../c3/asm.txt");
+    // include mem addresses
+    const SHADOW: &str = include_str!("../c3/shadow.txt");
     const LS: &str = include_str!("../c3/ls_mem.txt");
 
     // include man commands
     const ASCII: &str = include_str!("../c3/ascii.txt");
 
     clear_console();
-
-    println!("{}", "**".green());
 
     loop {
         if guesses == 0 {
@@ -365,7 +382,7 @@ echo "just one command I'm working on. I'd like to use the -fa to decrypt a file
                         if files.contains_key(&file_path.as_str()) {
 
                         } else {
-                            println!("File not found: {}", file_name);
+                            println!("Key not found: {}", file_name);
                         }
                     } else {
                         println!("No file specified for decryption.");
@@ -382,13 +399,30 @@ echo "just one command I'm working on. I'd like to use the -fa to decrypt a file
                         },
                         "~/secret" => {
                             if show_all {
+                                shadow_discovered = true;
+
                                 println!(".");
                                 println!("..");
-                                println!(".shadow");
+                                println!("{}", ".shadow".green());
                             }
                             println!("SECRET_PASSWORD");
                             println!("{}", "ls?.sh".green());
                         },
+                        "/home" => {
+                            if show_all {
+                                println!(".");
+                                println!("..");
+                            }
+                            println!("{}", "jim".blue());
+                        }
+                        "/home/jim" => {
+                            if show_all {
+                                println!(".");
+                                println!("..");
+                            }
+                            println!("no.txt");
+                            println!("man_computer.txt");
+                        }
                         _ => println!("Directory not found.")
                     }
                 }
@@ -409,24 +443,30 @@ echo "just one command I'm working on. I'd like to use the -fa to decrypt a file
             },
             "cd" => {
                 if let Some(target_dir) = parts.get(1) {
-                    if target_dir.to_string() == "." {
-                    } else if target_dir.to_string() == ".." {
+                    if target_dir == &"." {
+                        // Do nothing, stay in the current directory
+                    } else if target_dir == &".." {
                         if dir != "~" {
                             let parts = dir.rsplitn(2, '/').collect::<Vec<&str>>();
-                            let new_dir = parts.last().unwrap_or(&"~");
-                            dir = (*new_dir).to_string();
+                            dir = parts.last().map(|&d| if d.is_empty() { "~" } else { d }).unwrap_or("~").to_string();
                         }
-                    } else if target_dir.to_string() == "-" {
+                    } else if target_dir == &"-" {
                         println!("not implemented :(");
                     } else {
                         let full_path = if target_dir.starts_with("/") {
-                            target_dir.to_string()
+                            target_dir.trim_start_matches('/').to_string()
                         } else {
                             format!("{}/{}", dir.trim_start_matches('~'), target_dir)
                         };
 
-                        if (full_path == "/secret" && dir == "~") || available_dirs.contains(&full_path.as_str()) {
-                            dir = if full_path.starts_with('/') { format!("~{}", full_path) } else { full_path };
+                        let check_path = if full_path.starts_with('/') {
+                            full_path.trim_start_matches('/').to_string()
+                        } else {
+                            full_path.clone()
+                        };
+
+                        if available_dirs.contains(&check_path.as_str()) {
+                            dir = if full_path.starts_with('/') { format!("/{}", check_path) } else { full_path };
                         } else {
                             println!("{}: No such directory", target_dir);
                         }
@@ -451,52 +491,100 @@ echo "just one command I'm working on. I'd like to use the -fa to decrypt a file
             },
             "./ls?.sh" => {
                 if dir == "~/secret" {
-                    let print_ls = "./ls?.sh: line 27: unexpected EOF while looking for matching `\"'\n./ls?.sh: line 27: syntax error: unexpected end of file";
-                    println!("{}", print_ls);
+                    println!("./ls?.sh: line 27: unexpected EOF while looking for matching `\"'\n./ls?.sh: line 27: syntax error: unexpected end of file");
                     narrate = 1;
-                    println!("{}", "**".green());
                 }
                 else {
                     println!("No such file or directory");
                 }
             },
+            "./.shadow" => {
+                if dir == "~/secret" {
+                    println!("nothing to see here...");
+                    narrate = 4;
+                }
+            }
             "narrate" => {
                 match narrate {
                     0 => println!("I should look around the file system first"),
-                    1 => println!("I wonder what other commands there are? whats .shadow?"),
+                    1 => {
+                        if shadow_discovered {
+                            println!("I wonder what other commands there are. What's .shadow?");
+                        } else {
+                            println!("I wonder what other commands there are.");
+                        }
+                    },
                     2 => println!("Maybe the stuff at this address translates to something."),
                     3 => println!("I bet some other files have important data."),
+                    4 => println!("There is probably data hidden in the file"),
                     _ => unreachable!()
                 }
             },
             "disassemble" => {
                 if parts.len() == 3 {
                     let file_key = parts[1];
-                    let address = parts[2].to_lowercase();
+                    let mut address = parts[2].to_lowercase();
+
+                    // Remove the "0x" prefix from the address if it's present
+                    if address.starts_with("0x") {
+                        address = address.trim_start_matches("0x").to_string();
+                    }
 
                     match file_key {
-                        ".shadow" => handle_disassemble(file_key, &address, ASM, &mut narrate),
+                        ".shadow" => handle_disassemble(file_key, &address, SHADOW, &mut narrate),
                         "ls?.sh" => handle_disassemble(file_key, &address, LS, &mut narrate),
-                        // Add other cases as needed
                         _ => println!("Invalid file key: {}", file_key),
                     }
                 } else {
                     println!("Missing argument(s):\nUsage: disassemble <file> <address>")
                 }
             },
+            "grep" => {
+                if parts.len() >= 2 {
+                    let pattern = parts[1];
+
+                    // If a specific file is given, search only in that file
+                    if parts.len() == 3 {
+                        let file_name = parts[2];
+                        let full_file_path = if file_name.starts_with("~/") {
+                            file_name.to_string()
+                        } else {
+                            format!("{}/{}", dir, file_name)
+                        };
+
+                        if let Some(file_content) = files.get(full_file_path.as_str()) {
+                            for (line_number, line) in file_content.lines().enumerate() {
+                                if line.contains(pattern) {
+                                    println!("{}: {}", full_file_path, line);
+                                }
+                            }
+                        } else {
+                            println!("File not found: {}", full_file_path);
+                        }
+                    } else {
+                        for (path, content) in files.iter() {
+                            if path.starts_with(&dir) {
+                                for line in content.lines() {
+                                    if line.contains(pattern) {
+                                        println!("{}: {}", path, line);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    println!("Usage: grep <pattern> [file]");
+                }
+            },
             "man" => {
                 if let Some(cmd) = parts.get(1) {
                     if cmd.to_string() == "ascii" {
                         println!("{}", ASCII);
+                    } else {
+                        println!("Man page not found.\nhttps://man7.org/linux/man-pages/");
                     }
-                }
-            },
-            "touch" => {
-                if let Some(file) = parts.get(1) {
-                    let file_path = format!("{}/{}", dir, file);
-                    files.insert(&*file_path, &*"".to_string());
                 } else {
-                    println!("Missing argument:\nUsage: touch <file>");
+                    println!("Missing argument:\nUsage: man <file>");
                 }
             },
             _ => println!("Command not found: {}", command)
@@ -595,7 +683,6 @@ fn handle_disassemble(file_key: &str, address: &str, file_content: &str, narrate
                 _ => *narrate,
             };
             println!("{}", line);
-            println!("{}", "**".green());
         },
         Ok(None) => println!("Address not found/unreadable"),
         Err(e) => println!("Error: {}", e),
