@@ -44,7 +44,8 @@ fn main() -> io::Result<()> {
         println!("good job.");
         println!("the project is on github: https://github.com/Festive121/mr-pirus");
 
-        io::stdin().expect("");
+        let mut temp = String::new();
+        io::stdin().read_line(&mut temp).expect("");
     }
 
     Ok(())
