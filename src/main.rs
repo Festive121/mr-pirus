@@ -271,10 +271,8 @@ fn challenge_3() -> bool {
     let mut dir = String::from("~");
     let mut available_dirs = HashSet::new();
     available_dirs.insert("~");
-    available_dirs.insert("/etc");
+    available_dirs.insert("~/more");
     available_dirs.insert("~/secret");
-    available_dirs.insert("/home");
-    available_dirs.insert("/home/jim");
 
     let mut files = HashMap::new();
     let readme_details = r#"let guesses: i8 = 3;
@@ -339,8 +337,8 @@ match dir.as_str() {
 EOF
 echo "just one command I'm working on. I'd like to use -fa to decrypt a file with a key, but not sure how..."#;
     files.insert("~/secret/ls?.sh", ls_details);
-    files.insert("/home/jim/no.txt", "I am not adding every linux directory and file.");
-    files.insert("/home/jim/man_computer.txt", "At a given memory point, there is a hex value\
+    files.insert("~/more/no.txt", "I am not adding every linux directory and file.");
+    files.insert("~/more/man_computer.txt", "At a given memory point, there is a hex value\
     Hex values contain data for the system, which could be Strings.\
     For a program checking a password vvv\
     char password[] = \"pass\"; char input[100]; ... if (strcmp(input, pass) == 0) { correct(); };\
@@ -395,6 +393,7 @@ echo "just one command I'm working on. I'd like to use -fa to decrypt a file wit
                                 println!("..");
                             }
                             println!("{}", "secret".blue());
+                            println!("{}", "more".blue());
                             println!("readme.txt");
                         },
                         "~/secret" => {
@@ -408,21 +407,6 @@ echo "just one command I'm working on. I'd like to use -fa to decrypt a file wit
                             println!("SECRET_PASSWORD");
                             println!("{}", "ls?.sh".green());
                         },
-                        "/home" => {
-                            if show_all {
-                                println!(".");
-                                println!("..");
-                            }
-                            println!("{}", "jim".blue());
-                        }
-                        "/home/jim" => {
-                            if show_all {
-                                println!(".");
-                                println!("..");
-                            }
-                            println!("no.txt");
-                            println!("man_computer.txt");
-                        }
                         _ => println!("Directory not found.")
                     }
                 }
@@ -443,32 +427,31 @@ echo "just one command I'm working on. I'd like to use -fa to decrypt a file wit
             },
             "cd" => {
                 if let Some(target_dir) = parts.get(1) {
-                    if target_dir == &"." {
-                        // Do nothing, stay in the current directory
-                    } else if target_dir == &".." {
+                    if target_dir.to_string() == "." {
+                    } else if target_dir.to_string() == ".." {
                         if dir != "~" {
                             let parts = dir.rsplitn(2, '/').collect::<Vec<&str>>();
-                            dir = parts.last().map(|&d| if d.is_empty() { "~" } else { d }).unwrap_or("~").to_string();
+                            let new_dir = parts.last().unwrap_or(&"~");
+                            dir = (*new_dir).to_string();
                         }
-                    } else if target_dir == &"-" {
+                    } else if target_dir.to_string() == "-" {
                         println!("not implemented :(");
                     } else {
                         let full_path = if target_dir.starts_with("/") {
-                            target_dir.trim_start_matches('/').to_string()
+                            target_dir.to_string()
                         } else {
                             format!("{}/{}", dir.trim_start_matches('~'), target_dir)
                         };
 
-                        let check_path = if full_path.starts_with('/') {
-                            full_path.trim_start_matches('/').to_string()
-                        } else {
-                            full_path.clone()
-                        };
-
-                        if available_dirs.contains(&check_path.as_str()) {
-                            dir = if full_path.starts_with('/') { format!("/{}", check_path) } else { full_path };
-                        } else {
+                        if (full_path == "/secret" && dir == "~") || available_dirs.contains(&full_path.as_str()) {
+                            dir = if full_path.starts_with('/') { format!("~{}", full_path) } else { full_path.clone() };                        } else {
                             println!("{}: No such directory", target_dir);
+                        }
+
+                        if (full_path == "/more" && dir == "~") || available_dirs.contains(&full_path.as_str()) {
+                            dir = if full_path.starts_with('/') { format!("~{}", full_path) } else { full_path };
+                        } else {
+                            println!("{}: No such directory", target_dir)
                         }
                     }
                 } else {
@@ -553,7 +536,7 @@ echo "just one command I'm working on. I'd like to use -fa to decrypt a file wit
                         };
 
                         if let Some(file_content) = files.get(full_file_path.as_str()) {
-                            for (line_number, line) in file_content.lines().enumerate() {
+                            for (_line_number, line) in file_content.lines().enumerate() {
                                 if line.contains(pattern) {
                                     println!("{}: {}", full_file_path, line);
                                 }
