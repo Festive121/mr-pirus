@@ -37,6 +37,14 @@ fn main() -> io::Result<()> {
             println!("YOU LOSE!!! I suggest finding a sub and doing some reading...");
             break;
         }
+
+        clear_console();
+
+        println!("hmm i guess you win...");
+        println!("good job.");
+        println!("the project is on github: https://github.com/Festive121/mr-pirus");
+
+        io::stdin().expect("");
     }
 
     Ok(())

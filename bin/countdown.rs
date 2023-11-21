@@ -8,10 +8,10 @@ fn main() {
     let mut minutes = 10;
 
     // embed images
-    const IMG_DATA_1: &'static [u8] = include_bytes!("../images/1 a33q f0zr p0afhygvat cym.png");
-    const IMG_DATA_2: &'static [u8] = include_bytes!("../images/c00e q3f1ta.png");
-    const IMG_DATA_3: &'static [u8] = include_bytes!("../images/choy1p q1fcy4l bs 1as0ez4g10a.png");
-    const IMG_DATA_4: &'static [u8] = include_bytes!("../images/je1gg3a ol w1z clx3.png");
+    const IMG_DATA_1: &[u8] = include_bytes!("../images/1 a33q f0zr p0afhygvat cym.png");
+    const IMG_DATA_2: &[u8] = include_bytes!("../images/c00e q3f1ta.png");
+    const IMG_DATA_3: &[u8] = include_bytes!("../images/choy1p q1fcy4l bs 1as0ez4g10a.png");
+    const IMG_DATA_4: &[u8] = include_bytes!("../images/je1gg3a ol w1z clx3.png");
 
     clear_console();
 
@@ -67,7 +67,7 @@ fn main() {
                 let img_path_str = img_path.to_str().expect("Failed to convert path to string");
 
                 Command::new("cmd")
-                    .args(&["/C", "start", img_path_str])
+                    .args(["/C", "start", img_path_str])
                     .spawn()
                     .expect("Failed to open image");
 
@@ -106,7 +106,7 @@ fn count_digits(mut n: i32) -> usize {
 pub fn clear_console() {
     if cfg!(target_os = "windows") {
         Command::new("cmd")
-            .args(&["/C", "cls"])
+            .args(["/C", "cls"])
             .status()
             .unwrap();
     } else {
