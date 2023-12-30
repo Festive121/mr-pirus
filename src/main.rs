@@ -6,18 +6,21 @@ use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, exit};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, mpsc};
+use std::sync::Arc;
 use std::time::Duration;
-use std::{io, thread, fs};
+use std::{io, thread, fs, env};
+use std::fs::File;
 
 fn main() -> io::Result<()> {
     start();
 
     const COUNTDOWN_BIN: & [u8] = include_bytes!("../target/release/countdown.exe");
     const WEB_BIN: & [u8] = include_bytes!("../target/release/web.exe");
+    const POLY_BIN: & [u8] = include_bytes!("../target/release/poly.exe");
 
     save_binary("countdown", COUNTDOWN_BIN).unwrap();
     save_binary("c2", WEB_BIN).unwrap();
+    save_binary("poly", POLY_BIN).unwrap();
 
     let should_exit = Arc::new(AtomicBool::new(false));
     let r = should_exit.clone();
@@ -30,17 +33,26 @@ fn main() -> io::Result<()> {
         let mut lives = 3;
 
         execute_challenge(&mut lives, challenge_1);
+        println!("You have {} lives left", lives);
+        thread::sleep(Duration::from_secs(3));
         execute_challenge(&mut lives, challenge_2);
+        println!("You have {} lives left", lives);
+        thread::sleep(Duration::from_secs(3));
         execute_challenge(&mut lives, challenge_3);
 
         if lives == 0 {
             println!("YOU LOSE!!! I suggest finding a sub and doing some reading...");
             break;
+        } else {
+            println!("You have {} lives left", lives);
+            thread::sleep(Duration::from_secs(3));
         }
+
+        execute_challenge(&mut lives, challenge_4);
 
         clear_console();
 
-        println!("hmm i guess you win...");
+        println!("you won with {} lives", lives);
         println!("good job.");
         println!("the project is on github: https://github.com/Festive121/mr-pirus");
 
@@ -115,29 +127,10 @@ fn start() {
 }
 
 fn challenge_1() -> bool {
-    let (tx, rx) = mpsc::channel();
-    let countdown_duration = 60;
-
-    let tx_countdown = tx.clone();
-    thread::spawn(move || {
-        thread::sleep(Duration::from_secs(countdown_duration));
-        tx_countdown.send("Time Up").unwrap();
-    });
-
     let mut countdown = false;
     let mut remove_dur = 0;
     let mut hints = 3;
     loop {
-        match rx.try_recv() {
-            Ok(msg) => {
-                if msg == "Time Up" {
-                    println!("Countdown finished!");
-                    return false
-                }
-            },
-            Err(_e) => { }
-        }
-
         clear_console();
 
         println!("{}", "Welcome Jim Pyke...".red().bold());
@@ -352,11 +345,9 @@ EOF
 echo "just one command I'm working on. I'd like to use -fa to decrypt a file with a key, but not sure how..."#;
     files.insert("~/secret/ls?.sh", ls_details);
 
-    // include mem addresses
     const SHADOW: &str = include_str!("../c3/shadow.txt");
     const LS: &str = include_str!("../c3/ls_mem.txt");
 
-    // include man commands
     const ASCII: &str = include_str!("../c3/ascii.txt");
     const DISASSEMBLE: &str = include_str!("../c3/disassemble.txt");
 
@@ -635,6 +626,96 @@ echo "just one command I'm working on. I'd like to use -fa to decrypt a file wit
     false
 }
 
+fn challenge_4() -> bool {
+    let file_contents = include_str!("../c4/words.txt");
+    let lines: Vec<&str> = file_contents.lines().collect();
+
+    clear_console();
+
+    print_letters("This challenge covers polymorphic code--not a function working with any object", true);
+    print_letters("Here is some helpful information:", true);
+    print_letters(" - The program will constantly change itself over a timed interval", false);
+    print_letters(" - The key is hidden in the program", false);
+    print_letters(" - HINT: try to figure out the algorithm that remakes the key to make your own", true);
+    print_letters("Good luck!", false);
+    thread::sleep(Duration::from_secs(3));
+
+    run_binary("poly").unwrap();
+
+    clear_console();
+
+    loop {
+        clear_console();
+
+        match env::current_dir() {
+            Ok(path) => println!("current working dir: {}", path.display()),
+            Err(e) => println!("error: {}", e)
+        }
+
+        println!("Enter key");
+        print!(" : ");
+        io::stdout().flush().unwrap();
+
+        let mut key = String::new();
+        io::stdin().read_line(&mut key).expect("Failed to read line");
+
+        let key = key.trim();
+        let decode = decode_alg1(key);
+
+        println!("Decoded key: '{}'", decode);
+
+        let mut valid_key = false;
+        let mut key_already_used = false;
+
+        for line in &lines {
+            if line == &decode {
+                valid_key = true;
+            }
+        }
+
+        match File::open(".invalid_keys.txt") {
+            Ok(file) => {
+                let reader = BufReader::new(file);
+                let search_string = key;
+
+                for result in reader.lines() {
+                    if result.as_ref().map_or(false, |line| line.contains(search_string)) {
+                        key_already_used = true;
+                    }
+                }
+            }
+            Err(e) => {
+                println!("Error: {}", e);
+            }
+        }
+
+        if valid_key {
+            if !key_already_used {
+                println!("{}", "Access Granted.".green());
+
+                let file_path = ".invalid_keys.txt";
+                match fs::remove_file(file_path) {
+                    Ok(_) => { }
+                    Err(e) => {
+                        eprintln!("Error deleting file: {}", e);
+                    }
+                }
+
+                thread::sleep(Duration::from_secs(1));
+                break
+            } else {
+                println!("{}", "Access Denied. Key already used.".red());
+            }
+        } else {
+            println!("{}", "Access Denied. Key is not valid.".red());
+        }
+
+        thread::sleep(Duration::from_secs(5));
+    }
+
+    true
+}
+
 fn no() {
     clear_console();
 
@@ -677,14 +758,14 @@ fn execute_challenge<F: Fn() -> bool>(lives: &mut i32, challenge: F) {
 }
 
 fn save_binary(name: &str, data: &[u8]) -> io::Result<()> {
-    let path = std::env::temp_dir().join(format!("{}.exe", name));
+    let path = env::temp_dir().join(format!("{}.exe", name));
     fs::write(path, data)?;
     Ok(())
 }
 
 
 fn run_binary(name: &str) -> io::Result<()> {
-    let path = std::env::temp_dir().join(format!("{}.exe", name));
+    let path = env::temp_dir().join(format!("{}.exe", name));
     let path_str = path.to_str().unwrap();
 
     Command::new("cmd.exe")
@@ -740,4 +821,41 @@ fn cycle_capitalize(text: &str) {
 
         chars[i] = chars[i].to_lowercase().next().unwrap();
     }
+}
+
+fn print_letters<T: ToString>(text: T, end_del: bool) {
+    const DELAY_MS: u64 = 50;
+    let text_str = text.to_string();
+
+    for c in text_str.chars() {
+        print!("{}", c);
+        std::io::Write::flush(&mut io::stdout()).expect("Failed to flush stdout");
+        thread::sleep(Duration::from_millis(DELAY_MS));
+    }
+    println!();
+
+    if end_del {
+        thread::sleep(Duration::from_secs(1));
+    }
+}
+
+fn decode_alg1(encoded: &str) -> String {
+    let mut char_map: HashMap<char, usize> = HashMap::new();
+    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    for (i, c) in chars.chars().enumerate() {
+        char_map.insert(c, i);
+    }
+
+    let charset_len = char_map.len();
+
+    encoded.chars().map(|c| {
+        if let Some(&i) = char_map.get(&c) {
+            let rotated_index = (i - 13) % charset_len;
+            char_map.iter().find_map(|(&key, &val)| {
+                if val == rotated_index { Some(key) } else { None }
+            }).unwrap_or(c)
+        } else {
+            c
+        }
+    }).collect()
 }

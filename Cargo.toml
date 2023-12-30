@@ -8,12 +8,13 @@ edition = "2021"
 [dependencies]
 colored = "2.0.4"
 ctrlc = "3.4.1"
+lazy_static = "1.4.0"
 rand = "0.8.5"
-warp = "0.3"
-tokio = { version = "1", features = ["full"] }
-webbrowser = "0.8.11"
 serde = { version = "1.0.188", features = ["derive"] }
 tempfile = "3.8.1"
+tokio = { version = "1", features = ["full"] }
+warp = "0.3"
+webbrowser = "0.8.11"
 
 [[bin]]
 name = "countdown"
@@ -21,3 +22,6 @@ path = "bin/countdown.rs"
 [[bin]]
 name = "web"
 path = "bin/web.rs"
+[[bin]]
+name = "poly"
+path = "bin/poly.rs"

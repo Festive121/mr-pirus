@@ -587,6 +587,7 @@ version = "0.1.0"
 dependencies = [
  "colored",
  "ctrlc",
+ "lazy_static",
  "rand",
  "serde",
  "tempfile",
