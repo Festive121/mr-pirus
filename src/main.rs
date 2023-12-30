@@ -845,7 +845,7 @@ fn decode_alg1(encoded: &str) -> String {
 
     encoded.chars().map(|c| {
         if let Some(&i) = char_map.get(&c) {
-            let rotated_index = (i - 13) % charset_len;
+            let rotated_index = (i + charset_len - 13) % charset_len;
             char_map.iter().find_map(|(&key, &val)| {
                 if val == rotated_index { Some(key) } else { None }
             }).unwrap_or(c)
