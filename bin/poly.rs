@@ -2,18 +2,13 @@
 extern crate lazy_static;
 use std::collections::HashMap;
 use std::fs::OpenOptions;
-use std::{env, io, thread};
+use std::{io, thread};
 use std::io::Write;
 use std::process::Command;
 use std::time::Duration;
 use rand::Rng;
 
 fn main() {
-    match env::current_dir() {
-        Ok(path) => println!("current working dir: {}", path.display()),
-        Err(e) => println!("error: {}", e)
-    }
-
     println!("Probably pretty helpful, and I spent a long time working on it.");
     println!("https://drive.google.com/uc?export=download&id=1kiPk4ei-d_Pccx2wixir-xD1lHB8PAn9");
     println!("Enter to continue...");

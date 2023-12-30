@@ -647,11 +647,6 @@ fn challenge_4() -> bool {
     loop {
         clear_console();
 
-        match env::current_dir() {
-            Ok(path) => println!("current working dir: {}", path.display()),
-            Err(e) => println!("error: {}", e)
-        }
-
         println!("Enter key");
         print!(" : ");
         io::stdout().flush().unwrap();
